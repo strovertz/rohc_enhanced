@@ -8,34 +8,50 @@
 /* The size (in bytes) of the buffers used in the program */
 #define BUFFER_SIZE 2048
 
+// #define rohc_buf_init_empty(__data,__max_len) { .time = { .sec = 0, .nsec = 0, }, .data = (__data), .max_len = (__max_len), .offset = 0, .len = 0, }
+
 /* The payload for the fake IP packet */
 #define FAKE_PAYLOAD "hello, ROHC world!"
+
+typedef struct PacketList {
+    struct rohc_buf packet;
+    struct PacketList* next_packet;
+  } Packet; 
 
 static int gen_random_num(const struct rohc_comp *const comp, void *const user_context) {
    return rand();
 }
 
-void initialize(){
-    struct Vector *vector = malloc(sizeof(*v));
-    if (!vector) {
-        perror("malloc failed");
-        exit(1);
-    }
-    vector->elements = NULL;
-    vector->length = 0;
-    return vector;
+// Insere um pacote no inicio da lista
+void insert(int x, Packet *p)
+{
+  uint8_t ip_buffer[BUFFER_SIZE];
+  Packet *new;
+  new = malloc (sizeof (Packet));
+  new->packet = rohc_buf_init_empty(ip_buffer, BUFFER_SIZE);
+  new->next_packet = p->next_packet;
+  p->next_packet = new;
+}
+
+struct PacketList *initialize_vector(){
+  
+  struct Packet *packet = malloc(sizeof(*packet));
+  if (!packet) {
+      perror("malloc failed");
+      exit(1);
+  }
+
+  packet->packet = rohc_buf_init_empty(uint8_t ip_buffer[BUFFER_SIZE], BUFFER_SIZE);
+  packet->next_packet = NULL;
+  return packet;
 }
 
 /* The main entry point of the program (arguments are not used) */
 int main (int argc, char **argv){
   
   struct rohc_buf rohc_packet;
-  typedef struct PacketList {
-    struct rohc_buf packet;
-    struct PacketList* next_packet;
-  } Packet; 
-  
   struct rohc_comp *compressor;
+
     /* the buffer that will contain ipv4 packet to compress */
   uint8_t ip_buffer[BUFFER_SIZE];
   /* o pacote que vai conter o ipv4 packet */
@@ -51,7 +67,7 @@ int main (int argc, char **argv){
   /* print the purpose of the program on the console */
   printf ("This program will compress one single IPv4 packet\n");
   
-  Packet *packets_head = initialize_vector;
+  Packet *packets_head = initialize_vector();
 
   srand(time(NULL));
 
@@ -68,7 +84,6 @@ int main (int argc, char **argv){
       fprintf(stderr, "failed to enable the ip-only profiel\n");
       rohc_comp_free(compressor);
       return 1;
-  
   }
 
   /* cria um pacote ip falso para teste*/
@@ -115,12 +130,12 @@ int main (int argc, char **argv){
   for(i = 0; i < rohc_packet.len; i++){
     printf("0x%02x ", rohc_buf_byte_at(rohc_packet, i));
     if( i != 0 && ((i+1) % 8) == 0){
-        printf("\n");
+      printf("\n");
     }
   }
 
   if(i != 0 && (i % 8) != 0) {
-      printf("\n");
+    printf("\n");
   }
 
   /*libera o ROHC*/
