@@ -1,0 +1,26 @@
+#include <stdio.h>  /* for the printf() function */
+#include <netinet/ip.h>     /* for the IPv4 header */
+#include <string.h>         /* for strlen() */
+#include <rohc/rohc_buf.h>  /* for the rohc_buf_*() functions */
+
+/* The size (in bytes) of the buffers used in the program */
+#define BUFFER_SIZE 2048
+     
+/* The payload for the fake IP packet */
+#define FAKE_PAYLOAD "hello, ROHC world!"
+
+
+/* The main entry point of the program (arguments are not used) */
+int main(int argc, char **argv) {
+    /* the buffer that will contain ipv4 packet to compress */
+    uint8_t ip_buffer[BUFFER_SIZE] 
+    /* o pacote que vai conter o ipv4 packet */
+    struct rohc_buf_packet = rohc_buf_init_emp
+	/* print the purpose of the program on the console */
+    
+	    printf("This program will compress one single IPv4 packet\n");
+    
+    /* leave the program with a success code */
+    return 0;
+}
+
