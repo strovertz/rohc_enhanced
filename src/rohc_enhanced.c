@@ -1,5 +1,6 @@
 #include <stdio.h>              /* for the printf() function */
 #include "compressor_example.c"
+#include "decompressor.c"
 
 
 /* The main entry point of the program (arguments are not used) */

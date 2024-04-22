@@ -38,7 +38,9 @@ void create_fake_packets() {
     }
 
     for (int i = 0; i < 10; i++) {
+        /* o pacote que vai conter o ipv4 packet */
         struct rohc_buf ip_packet = rohc_buf_init_empty(ip_buffer, BUFFER_SIZE);
+        /* pacote resultante da funcao de compatação */
         struct rohc_buf rohc_packet = rohc_buf_init_empty(rohc_buffer, BUFFER_SIZE);
         printf("\nBuilding fake packet: %d\n", i);
 
@@ -76,8 +78,8 @@ void create_fake_packets() {
             rohc_comp_free(compressor);
             exit(1);
         }
-        if (ip_packet.len > rohc_packet.len)
-        {
+        /*if (ip_packet.len > rohc_packet.len)
+        {*/
             printf("Resulting ROHC packet after compression\n");
             for (size_t j = 0; j < rohc_packet.len; j++) {
                 printf("0x%02x ", rohc_buf_byte_at(rohc_packet, j));
@@ -89,7 +91,7 @@ void create_fake_packets() {
             if (i != 0 && (i % 8) != 0) {
                 printf("\n");
             }
-        }
+        //}
     }
 
     printf("Destroying the ROHC compressor\n");
