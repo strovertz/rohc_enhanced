@@ -3,6 +3,7 @@
 #include <string.h>		/* for strlen() */
 #include <rohc/rohc_buf.h>	/* for the rohc_buf_*() functions */
 #include <time.h>
+#include <stdlib.h>
 #include <rohc/rohc_comp.h>
 
 /* The size (in bytes) of the buffers used in the program */
@@ -13,8 +14,17 @@
 /* The payload for the fake IP packet */
 #define FAKE_PAYLOAD "hello, ROHC world!"
 
+typedef struct rohc_bufr
+{
+	struct rohc_ts time;  /**< The timestamp associated to the data */
+	uint8_t *data;        /**< The buffer data */
+	size_t max_len;       /**< The maximum length of the buffer */
+	size_t offset;        /**< The offset for the beginning of the data */
+	size_t len;           /**< The data length (in bytes) */
+} rohc_bufr;
+
 typedef struct PacketList {
-    struct rohc_buf packet;
+    struct rohc_bufr packet;
     struct PacketList* next_packet;
   } Packet; 
 
@@ -23,33 +33,38 @@ static int gen_random_num(const struct rohc_comp *const comp, void *const user_c
 }
 
 // Insere um pacote no inicio da lista
-void insert(int x, Packet *p)
-{
+
+
+void insert(int x, Packet *p){
+  Packet *new = malloc(sizeof(Packet));
   uint8_t ip_buffer[BUFFER_SIZE];
-  Packet *new;
-  new = malloc (sizeof (Packet));
-  new->packet = rohc_buf_init_empty(ip_buffer, BUFFER_SIZE);
+  if (new == NULL) {
+      perror("malloc failed");
+      exit(1);
+  }
+  new->packet.data = 10;
+  new->packet.max_len = BUFFER_SIZE;
+  new->packet.offset = 0;
   new->next_packet = p->next_packet;
   p->next_packet = new;
 }
 
-struct PacketList *initialize_vector(){
-  
-  struct Packet *packet = malloc(sizeof(*packet));
-  if (!packet) {
+Packet *initialize_vector(){
+  uint8_t ip_buffer[BUFFER_SIZE];
+  Packet *packet = malloc(sizeof(Packet));
+  if (packet == NULL) {
       perror("malloc failed");
       exit(1);
   }
-
-  packet->packet = rohc_buf_init_empty(uint8_t ip_buffer[BUFFER_SIZE], BUFFER_SIZE);
+  packet->packet = malloc(sizeof(rohc_bufr));
   packet->next_packet = NULL;
   return packet;
 }
 
+
 /* The main entry point of the program (arguments are not used) */
 int main (int argc, char **argv){
   
-  struct rohc_buf rohc_packet;
   struct rohc_comp *compressor;
 
     /* the buffer that will contain ipv4 packet to compress */
@@ -60,15 +75,20 @@ int main (int argc, char **argv){
 
   /*struct pra guardar o resultado do pacote rohc*/
   uint8_t rohc_buffer[BUFFER_SIZE];
-  struct rohc_buf rohc_packet = rohc_buf_init_empty(rohc_buffer, BUFFER_SIZE)
+  struct rohc_buf rohc_packet = rohc_buf_init_empty(rohc_buffer, BUFFER_SIZE);
   rohc_status_t rohc_status;
-
   size_t i;
+
   /* print the purpose of the program on the console */
-  printf ("This program will compress one single IPv4 packet\n");
+  /*printf ("This program will compress one single IPv4 packet\n");
   
   Packet *packets_head = initialize_vector();
-
+  if (packets_head == NULL)
+  {
+    printf("Errr");
+  }
+  */
+  printf("ARGC: %d, ARGV: %s\n", argc, *argv);
   srand(time(NULL));
 
   /* criando um compressor ROHC com parametros padrao*/
