@@ -7,10 +7,10 @@ Robust Header Compression Tests
 #### Build With GCC:
 
 ```C
-gcc -o rohc_hello_world -Wall \
-  $(pkg-config rohc --cflags) \
-  rohc_hello_world.c \
-  $(pkg-config rohc --libs) 
+gcc -o rohc_enhanced -Wall \
+  $(pkg-config rohc libpcap --cflags) \
+  rohc_enhanced.c \
+  $(pkg-config rohc libpcap --libs)
 
 ```
 ### Results 

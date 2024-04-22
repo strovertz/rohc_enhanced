@@ -1,4 +1,4 @@
-#include <pcap.h> 
+#include <pcap/pcap.h>
 #include <stdio.h> 
 #include <stdlib.h> 
 #include <errno.h> 
@@ -9,16 +9,11 @@
 #include "packets_capture.h"
 
 
-int capture(){
-	char errbuf[PCAP_ERRBUF_SIZE];	
-	int dev;
-	struct pcap_if **pcap_if_t;
-	dev = pcap_findalldevs(pcap_if_t, errbuf);
-	if(dev == 0){
-		printf("Error with capture interface\n");
-		exit(0);
-	}
-	printf("Success");
-	
-	return 0;
+
+int capture(int argc,char **argv) 
+{ 
+    char errbuf[PCAP_ERRBUF_SIZE];
+	pcap_create("any", errbuf);
+	printf("ERROR %s\n", errbuf);
+	return 0;	
 }
