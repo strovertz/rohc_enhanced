@@ -4,6 +4,7 @@
         "packets_capture.h": "c",
         "inet.h": "c",
         "stdio.h": "c",
-        "type_traits": "c"
+        "type_traits": "c",
+        "tcp.h": "c"
     }
 }

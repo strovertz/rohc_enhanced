@@ -96,17 +96,6 @@ void create_fake_packets() {
                 printf("\n");
             }
         //}
-
-        target.sin_family = AF_INET;
-        target.sin_addr.s_addr = aton('8.8.8.8');
-        target.sin_port = htons('8080');
-        i = sendto();
-        if (i < 0){
-            printf("\n\n ALGO");
-            return (-1); /*Error*/}
-        else
-            return (i); /*Return number of bytes sent*/
-
        // decompressor(rohc_packet, ip_packet);
     }
 

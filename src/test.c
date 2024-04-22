@@ -20,6 +20,7 @@ was built on top of my ethernet packet sender/receiver program.
 #include <netinet/ether.h>
 #include <netinet/ip.h>
 #include <rohc/rohc_comp.h>
+#include <time.h>
 #include <rohc/rohc_buf.h>
 
 
@@ -32,15 +33,21 @@ was built on top of my ethernet packet sender/receiver program.
 #define ETHHDRSIZ 14
 #define IPHDRSIZ 20
 
-#define FAKE_PAYLOAD "hello world"
+#define FAKE_PAYLOAD "hello, ROHC world!"
 
 unsigned long get_ip_saddr(char *if_name, int sockfd);
 unsigned long get_netmask(char *if_name, int sockfd);
 uint16_t ip_checksum(void *vdata, size_t length);
-struct iphdr constructIpHeader(struct in_addr dst, char if_name[], int sockfd, int sizePayload);
+struct iphdr *constructIpHeader(struct in_addr dst, char if_name[], int sockfd, int sizePayload);
 void recv_message(char if_name[], struct sockaddr_ll sk_addr, int sockfd);
 void send_message(char if_name[], struct sockaddr_ll sk_addr, char hw_addr[], char payload[], int sockfd, int type, struct ifreq if_hwaddr, int sizePayload);
 
+    struct iphdr *ip_header;
+    uint8_t ip_buffer[BUFFER_SIZE];
+    uint8_t rohc_buffer[BUFFER_SIZE];
+        struct rohc_buf ip_packet = rohc_buf_init_empty(ip_buffer, BUFFER_SIZE);
+
+    
 
 
 static int gen_random_num(const struct rohc_comp *const comp, void *const user_context) {
@@ -79,28 +86,32 @@ void send_message(char if_name[], struct sockaddr_ll sk_addr, char hw_addr[], ch
 	sk_addr.sll_ifindex = if_idx.ifr_ifindex;
 	sk_addr.sll_halen = ETH_ALEN;
 	printf("size payload: %d\n",sizePayload);
-	int byteSent = sendto(sockfd, buff, ETHHDRSIZ+sizePayload, 0, (struct sockaddr*)&sk_addr, sizeof(struct sockaddr_ll));
+    printf("oOIOIOI");
+        
+	int byteSent = sendto(sockfd, payload, ETHHDRSIZ+sizePayload, 0, payload, sizeof(struct sockaddr_ll));
 	printf("%d bytes sent!\n", byteSent);
 }
 
-struct iphdr constructIpHeader(struct in_addr dst, char if_name[], int sockfd, int sizePayload){
+struct iphdr* constructIpHeader(struct in_addr dst, char if_name[], int sockfd, int sizePayload){
 	printf("constructing IP header...\n");
-	struct iphdr ip_hdr;
-	ip_hdr.ihl = 5;
-	ip_hdr.version = 4;
-	ip_hdr.tos = 0;
-	ip_hdr.tot_len = htons(IPHDRSIZ+sizePayload);
-	ip_hdr.id = 4;
-	ip_hdr.frag_off = 0x0;
-	ip_hdr.ttl = 0x40;
-	ip_hdr.protocol = 6;
-	ip_hdr.check = 0;
-	ip_hdr.saddr = get_ip_saddr(if_name,sockfd);
-	ip_hdr.daddr = dst.s_addr;
+	struct iphdr *ip_header;
+    ip_header = (struct iphdr *)rohc_buf_data(ip_packet);
+    ip_header->version = 4;
+    ip_header->ihl = 5;
+    ip_packet.len += ip_header->ihl * 4;
+    ip_header->tos = 0;
+    ip_header->tot_len = htons(ip_packet.len + strlen(FAKE_PAYLOAD));
+    ip_header->id = 0;
+    ip_header->frag_off = 0;
+    ip_header->ttl = 1;
+    ip_header->protocol = 134;
+    ip_header->check = 0x3fa9;
+    ip_header->saddr = htonl(0x01020304);
+    ip_header->daddr = htonl(0x05060708);
 
-	ip_hdr.check = ip_checksum(&ip_hdr, IPHDRSIZ);
+	//ip_header->check = ip_checksum(&ip_hdr, IPHDRSIZ);
 	printf("IP header constructed...\n");
-	return ip_hdr; 
+	return ip_header; 
 }
 
 // ip_checksum provided by Adam Hahn
@@ -214,23 +225,12 @@ int main(int argc, char *argv[])
 	
 		// send IP packet
 		memset(&sk_addr,0,sk_addr_size);
-		struct iphdr ip_hdr;
-		if((my_ip & netmask) == (dst_ip.s_addr & netmask)){
-			ip_hdr = constructIpHeader(dst_ip, interfaceName, sockfd, strlen(buff));
-		}
-		else{
-			ip_hdr = constructIpHeader(dst_ip, interfaceName, sockfd, strlen(buff));
-		}
-		char ip_payload[IPHDRSIZ+strlen(buff)+1];
-		char *ip = (char *)&ip_hdr;
-		memcpy(ip_payload, ip, IPHDRSIZ);
-		memcpy(&ip_payload[IPHDRSIZ], buff, strlen(buff));
-        
-        struct rohc_comp *compressor;
-        uint8_t rohc_buffer[BUFFER_SIZE];
+		struct iphdr *ip_header;
+        struct rohc_buf ip_packet = rohc_buf_init_empty(ip_buffer, BUFFER_SIZE);
         struct rohc_buf rohc_packet = rohc_buf_init_empty(rohc_buffer, BUFFER_SIZE);
+        struct rohc_comp *compressor;
         rohc_status_t rohc_status;
-
+        size_t i;
 
         srand(time(NULL));
         compressor = rohc_comp_new2(ROHC_SMALL_CID, ROHC_SMALL_CID_MAX, gen_random_num, NULL);
@@ -246,17 +246,64 @@ int main(int argc, char *argv[])
             exit(1);
         }
 
+		/*if((my_ip & netmask) == (dst_ip.s_addr & netmask)){
+			ip_hdr = constructIpHeader(dst_ip, interfaceName, sockfd, strlen(buff));
+		}
+		else{
+			ip_hdr = constructIpHeader(dst_ip, interfaceName, sockfd, strlen(buff));
 
-    
-        rohc_buf_append(&ip_hdr, (uint8_t *)FAKE_PAYLOAD, strlen(FAKE_PAYLOAD));
-        rohc_status = rohc_compress4(compressor, ip_hdr, &rohc_packet);
+		}*/
+
+        ip_header = (struct iphdr *)rohc_buf_data(ip_packet);
+        ip_header->version = 4;
+        ip_header->ihl = 5;
+        ip_packet.len += ip_header->ihl * 4;
+        ip_header->tos = 0;
+        ip_header->tot_len = htons(ip_packet.len + strlen(FAKE_PAYLOAD));
+        ip_header->id = 0;
+        ip_header->frag_off = 0;
+        ip_header->ttl = 1;
+        ip_header->protocol = 134;
+        ip_header->check = 0x3fa9;
+        ip_header->saddr = htonl(0x01020304);
+        ip_header->daddr = htonl(0x05060708);
+
+        rohc_buf_append(&ip_packet, (uint8_t *)FAKE_PAYLOAD, strlen(FAKE_PAYLOAD));
+
+        for(i = 0; i < ip_packet.len; i++)
+        {
+            printf("0x%02x ", rohc_buf_byte_at(ip_packet, i));
+            if(i != 0 && ((i + 1) % 8) == 0)
+            {
+                printf("\n");
+            }
+        }
+        if(i != 0 && (i % 8) != 0) /* be sure to go to the line */
+        {
+            printf("\n");
+        }
+
+        printf("\nCompressing the IP packet\n");
+        rohc_status = rohc_compress4(compressor, ip_packet, &rohc_packet);
         if (rohc_status != ROHC_STATUS_OK) {
             fprintf(stderr, "Compression of fake packet failed: %s (%d)\n", rohc_strerror(rohc_status), rohc_status);
             rohc_comp_free(compressor);
             exit(1);
         }
-
-		send_message(interfaceName, sk_addr, dst_mac, ip_payload, sockfd, 1, if_hwaddr, IPHDRSIZ+strlen(buff));
+       
+        printf("Resulting ROHC packet after compression\n");
+        for(i = 0; i < rohc_packet.len; i++)        {
+            printf("0x%02x ", rohc_buf_byte_at(rohc_packet, i));
+            if(i != 0 && ((i + 1) % 8) == 0)
+            {
+                printf("\n");
+            }
+        }
+        if(i != 0 && (i % 8) != 0) /* be sure to go to the line */
+        {
+            printf("\n");
+        }
+		send_message(interfaceName, sk_addr, dst_mac, (char *) rohc_buf_data(ip_packet), sockfd, 1, if_hwaddr, IPHDRSIZ+strlen(buff));
 	}
 	else if (mode == RECV){
 		int sockfd = -1;
