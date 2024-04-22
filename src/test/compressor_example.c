@@ -1,13 +1,10 @@
-#include "compressor.h"
-#include "decompressor.h"
+#include "compressor_example.h"
 #include <stdio.h>
 #include <netinet/ip.h>
 #include <string.h>
 #include <rohc/rohc_buf.h>
 #include <time.h>
-#include <stdlib.h>
-#include <netinet/ip.h>
-#include <netinet/tcp.h>
+#include <stdlib.h>compressor_example.c compressor_example.h rohc_enhanced rohc_enhanced.c
 #include <rohc/rohc_comp.h>
 
 /* The size (in bytes) of the buffers used in the program */
@@ -41,12 +38,9 @@ void create_fake_packets() {
     }
 
     for (int i = 0; i < 10; i++) {
-        /* o pacote que vai conter o ipv4 packet */
         struct rohc_buf ip_packet = rohc_buf_init_empty(ip_buffer, BUFFER_SIZE);
-        /* pacote resultante da funcao de compatação */
         struct rohc_buf rohc_packet = rohc_buf_init_empty(rohc_buffer, BUFFER_SIZE);
         printf("\nBuilding fake packet: %d\n", i);
-        struct sockaddr_in target;
 
         ip_header = (struct iphdr *)rohc_buf_data(ip_packet);
         ip_header->version = 4;
@@ -82,8 +76,8 @@ void create_fake_packets() {
             rohc_comp_free(compressor);
             exit(1);
         }
-        /*if (ip_packet.len > rohc_packet.len)
-        {*/
+        if (ip_packet.len > rohc_packet.len)
+        {
             printf("Resulting ROHC packet after compression\n");
             for (size_t j = 0; j < rohc_packet.len; j++) {
                 printf("0x%02x ", rohc_buf_byte_at(rohc_packet, j));
@@ -95,22 +89,9 @@ void create_fake_packets() {
             if (i != 0 && (i % 8) != 0) {
                 printf("\n");
             }
-        //}
-
-        target.sin_family = AF_INET;
-        target.sin_addr.s_addr = aton('8.8.8.8');
-        target.sin_port = htons('8080');
-        i = sendto();
-        if (i < 0){
-            printf("\n\n ALGO");
-            return (-1); /*Error*/}
-        else
-            return (i); /*Return number of bytes sent*/
-
-       // decompressor(rohc_packet, ip_packet);
+        }
     }
 
     printf("Destroying the ROHC compressor\n");
     rohc_comp_free(compressor);
 }
-
