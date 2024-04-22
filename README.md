@@ -48,10 +48,4 @@ Resulting ROHC packet after compression
 
 As observed, the first compressed packet is larger than the original packet. This occurs because the first compressed packet contains additional information.
 
-The second compressed packet contains only the mutable fields. 
-
--
--
--
--
--
+The second compressed packet contains only the mutable fields.

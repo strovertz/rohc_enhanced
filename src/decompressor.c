@@ -6,29 +6,26 @@
 #include <time.h>
 #include <stdlib.h>
 #include <rohc/rohc_comp.h>
+#include <rohc/rohc_decomp.h>
 
 #define BUFFER_SIZE 2048
 #define FAKE_PAYLOAD "hello, ROHC world!"
 
-void decompressor(){
+void decompressor(struct rohc_buf rohc_packet, struct rohc_buf ip_packet){
     //! [define ROHC decompressor]
 	struct rohc_decomp *decompressor;       /* the ROHC decompressor */
     //! [define ROHC decompressor]
-
     //! [define IP and ROHC packets]
-	/* the buffer that will contain the ROHC packet to decompress */
-	unsigned char rohc_buffer[BUFFER_SIZE];
-	struct rohc_buf rohc_packet = rohc_buf_init_empty(rohc_buffer, BUFFER_SIZE);
-	/* the buffer that will contain the resulting IP packet */
-	unsigned char ip_buffer[BUFFER_SIZE];
-	struct rohc_buf ip_packet = rohc_buf_init_empty(ip_buffer, BUFFER_SIZE);
+	
 	/* we do not want to handle feedback in this simple example */
 	struct rohc_buf *rcvd_feedback = NULL;
 	struct rohc_buf *feedback_send = NULL;
     //! [define IP and ROHC packets]
-
+	printf("\n\n\n The Received Packet: \n");
+	dump_packet(rohc_packet);
+	printf("\n\nIP PACKET:\n");
+	dump_packet(ip_packet);
 	rohc_status_t status;
-	size_t i;
 
     //! [create ROHC decompressor #1]
 	/* Create a ROHC decompressor to operate:
@@ -103,13 +100,11 @@ void decompressor(){
 	}
 	else
 	{
+		fprintf(stderr, "\nDecomp Status: %s - %d\n", rohc_strerror(status), status);
 		/* failure: decompressor failed to decompress the ROHC packet */
 		fprintf(stderr, "decompression of fake ROHC packet failed\n");
-    //! [decompress ROHC packet #2]
 		goto release_decompressor;
-    //! [decompress ROHC packet #3]
 	}
-    //! [decompress ROHC packet #3]
 
 
 	/* Release the ROHC decompressor when you do not need it anymore */
@@ -121,12 +116,29 @@ void decompressor(){
 
 	printf("\nThe program ended successfully.\n");
 
-	return 0;
+	exit(0);
 
     release_decompressor:
         rohc_decomp_free(decompressor);
     error:
         fprintf(stderr, "an error occurred during program execution, "
                 "abort program\n");
-	return 1;
+	exit(1);
+}
+
+void dump_packet(const struct rohc_buf packet){
+	size_t i;
+
+	for(i = 0; i < packet.len; i++)
+	{
+		printf("0x%02x ", rohc_buf_byte_at(packet, i));
+		if(i != 0 && ((i + 1) % 8) == 0)
+		{
+			printf("\n");
+		}
+	}
+	if(i != 0 && ((i + 1) % 8) != 0) /* be sure to go to the line */
+	{
+		printf("\n");
+	}
 }

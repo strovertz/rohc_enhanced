@@ -1,4 +1,5 @@
-#include "compressor_example.h"
+#include "compressor.h"
+#include "decompressor.h"
 #include <stdio.h>
 #include <netinet/ip.h>
 #include <string.h>
@@ -92,8 +93,11 @@ void create_fake_packets() {
                 printf("\n");
             }
         //}
+
+        decompressor(rohc_packet, ip_packet);
     }
 
     printf("Destroying the ROHC compressor\n");
     rohc_comp_free(compressor);
 }
+
