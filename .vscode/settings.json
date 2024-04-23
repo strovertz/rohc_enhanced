@@ -5,6 +5,8 @@
         "inet.h": "c",
         "stdio.h": "c",
         "type_traits": "c",
-        "tcp.h": "c"
+        "tcp.h": "c",
+        "rohc_comp.h": "c",
+        "decompressor.h": "c"
     }
 }
