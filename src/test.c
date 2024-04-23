@@ -1,14 +1,3 @@
-/********************************
-Programmer	Last Modified		Description
----------	-------------		---------------
-Cody Sigvartson	10_24_18			Initial development
-
-Program description:
-This program builds and sends ip packets to both local networks
-and through a router interface to different subnets. This program
-was built on top of my ethernet packet sender/receiver program.
-********************************/
-
 #include <arpa/inet.h>
 #include <linux/if_packet.h>
 #include <stdio.h>
@@ -22,7 +11,6 @@ was built on top of my ethernet packet sender/receiver program.
 #include <rohc/rohc_comp.h>
 #include <time.h>
 #include <rohc/rohc_buf.h>
-
 
 #define BUF_SIZ		65535
 #define SEND 0
@@ -40,55 +28,26 @@ unsigned long get_netmask(char *if_name, int sockfd);
 uint16_t ip_checksum(void *vdata, size_t length);
 struct iphdr *constructIpHeader(struct in_addr dst, char if_name[], int sockfd, int sizePayload);
 void recv_message(char if_name[], struct sockaddr_ll sk_addr, int sockfd);
-void send_message(char if_name[], struct sockaddr_ll sk_addr, char hw_addr[], char payload[], int sockfd, int type, struct ifreq if_hwaddr, int sizePayload);
+void send_message(char payload[]);
 
-    struct iphdr *ip_header;
-    uint8_t ip_buffer[BUFFER_SIZE];
-    uint8_t rohc_buffer[BUFFER_SIZE];
-        struct rohc_buf ip_packet = rohc_buf_init_empty(ip_buffer, BUFFER_SIZE);
-
-    
-
+struct iphdr *ip_header;
+uint8_t ip_buffer[BUFFER_SIZE];
+uint8_t rohc_buffer[BUFFER_SIZE];
+struct rohc_buf ip_packet = rohc_buf_init_empty(ip_buffer, BUFFER_SIZE);
 
 static int gen_random_num(const struct rohc_comp *const comp, void *const user_context) {
     return rand();
 }
 
-void send_message(char if_name[], struct sockaddr_ll sk_addr, char hw_addr[], char payload[], int sockfd, int type, struct ifreq if_hwaddr, int sizePayload){
-	// build ethernet frame
-	struct ether_header frame;
-	memset(&frame,0,sizeof(struct ether_header));
-	memcpy(frame.ether_dhost, hw_addr, 6);
-	memcpy(frame.ether_shost, if_hwaddr.ifr_hwaddr.sa_data, 6);
-	switch(type){
-		case 1: // IP
-			frame.ether_type = htons(ETH_P_IP);
-			break;
-		default:
-			frame.ether_type = htons(ETH_P_IP);
-			break;
-
-	}
-
-	struct ifreq if_idx;
-	memset(&if_idx,0,sizeof(struct ifreq));
-	strncpy(if_idx.ifr_name, if_name, IFNAMSIZ-1);
-	if(ioctl(sockfd, SIOCGIFINDEX, &if_idx) < 0){
-		perror("SIOCGIFINDEX");
-	}
-
-	// pack frame header
-	unsigned char buff[BUF_SIZ];
-	char *eth_header = (char *)&frame;
-	memcpy(buff,eth_header,ETHHDRSIZ);
-	memcpy(&buff[ETHHDRSIZ],payload,sizePayload);
-
-	sk_addr.sll_ifindex = if_idx.ifr_ifindex;
-	sk_addr.sll_halen = ETH_ALEN;
-	printf("size payload: %d\n",sizePayload);
-    printf("oOIOIOI");
-        
-	int byteSent = sendto(sockfd, payload, ETHHDRSIZ+sizePayload, 0, payload, sizeof(struct sockaddr_ll));
+void send_message(char payload[]){
+	
+	//printf("size payload: %ld\n", sizeof(payload)); ablublebluble
+    int sockfd = socket(PF_INET,SOCK_STREAM,0);
+	if (sockfd == -1) perror("socket() failed!");
+	printf("SockFD: %d, OOB: %d \n", sockfd, MSG_OOB);
+	
+	int byteSent = send(sockfd, payload, 65333, MSG_OOB);
+	if (byteSent == -1) perror("Send() Error!! ");
 	printf("%d bytes sent!\n", byteSent);
 }
 
@@ -201,26 +160,14 @@ int main(int argc, char *argv[])
 
 
 	if(mode == SEND){
-		// create socket
-		int sockfd = -1;
-		if((sockfd = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL)))<0){
-			perror("socket() failed!");
-		}
 
 		// connect to interface name
-		struct ifreq if_hwaddr;
-		memset(&if_hwaddr,0,sizeof(struct ifreq));
-		strncpy(if_hwaddr.ifr_name, interfaceName, IFNAMSIZ-1);
-		if(ioctl(sockfd, SIOCGIFHWADDR, &if_hwaddr) < 0){
-			perror("SIOCGIFHWADDR");
-		}
-
 		// if netmask is different, send ARP request for my router IP first
 		// once I have MAC of my router, send  dst MAC router, dest IP
-		unsigned long netmask = get_netmask(interfaceName,sockfd);
-		unsigned long my_ip = get_ip_saddr(interfaceName,sockfd);
+		//unsigned long netmask = get_netmask(interfaceName,sockfd);
+		//unsigned long my_ip = get_ip_saddr(interfaceName,sockfd);
 		// wait for ARP response
-		char dst_mac[6];
+		//char dst_mac[6];
 		int sk_addr_size = sizeof(struct sockaddr_ll);
 	
 		// send IP packet
@@ -303,7 +250,7 @@ int main(int argc, char *argv[])
         {
             printf("\n");
         }
-		send_message(interfaceName, sk_addr, dst_mac, (char *) rohc_buf_data(ip_packet), sockfd, 1, if_hwaddr, IPHDRSIZ+strlen(buff));
+		send_message((char *)rohc_buf_data(ip_packet));
 	}
 	else if (mode == RECV){
 		int sockfd = -1;
