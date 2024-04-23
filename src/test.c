@@ -99,29 +99,10 @@ uint16_t ip_checksum(void *vdata, size_t length){
 	return htons(~acc);
 }
 
-unsigned long get_netmask(char *if_name, int sockfd){
-	struct ifreq if_idx;
-	memset(&if_idx,0,sizeof(struct ifreq));
-	strncpy(if_idx.ifr_name,if_name,IFNAMSIZ-1);
-	if((ioctl(sockfd,SIOCGIFNETMASK,&if_idx)) == -1)
-		perror("ioctl():");
-	return ((struct sockaddr_in *)&if_idx.ifr_netmask)->sin_addr.s_addr;
-}
-
-unsigned long get_ip_saddr(char *if_name, int sockfd){
-	printf("retrieving source IP...\n");
-	struct ifreq if_idx;
-	memset(&if_idx,0,sizeof(struct ifreq));
-	strncpy(if_idx.ifr_name, if_name, IFNAMSIZ-1);
-	if(ioctl(sockfd, SIOCGIFADDR, &if_idx) < 0)
-		perror("SIOCGIFADDR");
-	printf("source IP obtained.\n");
-	return ((struct sockaddr_in *)&if_idx.ifr_addr)->sin_addr.s_addr;
-}
-
 int main(int argc, char *argv[])
 {
 	int mode;
+	size_t IFNAMSIZ;
 	char buff[BUF_SIZ];
 	char interfaceName[IFNAMSIZ];
 	memset(buff, 0, BUF_SIZ);
@@ -133,8 +114,6 @@ int main(int argc, char *argv[])
 		if(strncmp(argv[1],"Send", 4)==0){
 			if (argc == 6){
 				mode=SEND; 
-				inet_aton(argv[3], &dst_ip);
-				inet_aton(argv[4], &router_ip);
 				strncpy(buff, argv[5], BUF_SIZ);
 				printf("Sending payload: %s\n", buff);
 				correct=1;
@@ -150,7 +129,7 @@ int main(int argc, char *argv[])
 		printf("interface: %s\n",interfaceName);
 	 }
 	 if(!correct){
-		fprintf(stderr, "./455_proj2 Send <InterfaceName>  <DestIP> <RouterIP> <Message>\n");
+		fprintf(stderr, "./455_proj2 Send <InterfaceName>\n");
 		fprintf(stderr, "./455_proj2 Recv <InterfaceName>\n");
 		exit(1);
 	 }
@@ -161,17 +140,6 @@ int main(int argc, char *argv[])
 
 	if(mode == SEND){
 
-		// connect to interface name
-		// if netmask is different, send ARP request for my router IP first
-		// once I have MAC of my router, send  dst MAC router, dest IP
-		//unsigned long netmask = get_netmask(interfaceName,sockfd);
-		//unsigned long my_ip = get_ip_saddr(interfaceName,sockfd);
-		// wait for ARP response
-		//char dst_mac[6];
-		int sk_addr_size = sizeof(struct sockaddr_ll);
-	
-		// send IP packet
-		memset(&sk_addr,0,sk_addr_size);
 		struct iphdr *ip_header;
         struct rohc_buf ip_packet = rohc_buf_init_empty(ip_buffer, BUFFER_SIZE);
         struct rohc_buf rohc_packet = rohc_buf_init_empty(rohc_buffer, BUFFER_SIZE);
