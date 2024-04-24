@@ -23,7 +23,7 @@
 #define IPHDRSIZ 20
 
 
-#define FAKE_PAYLOAD "LEK LEK LKE, ALELEKLEK LEK LEK!"
+#define FAKE_PAYLOAD "T"
 
 unsigned long get_ip_saddr(char *if_name, int sockfd);
 unsigned long get_netmask(char *if_name, int sockfd);
@@ -94,18 +94,7 @@ void send_message(char if_name[], struct sockaddr_ll sk_addr, char hw_addr[], ch
 	memset(&frame,0,sizeof(struct ether_header));
 	memcpy(frame.ether_dhost, hw_addr, 6);
 	memcpy(frame.ether_shost, if_hwaddr.ifr_hwaddr.sa_data, 6);
-	switch(type){
-		case 1: // IP
-			frame.ether_type = htons(ETH_P_IP);
-			break;
-		case 2: // ARP
-			frame.ether_type = htons(ETHERTYPE_ARP);
-			break;
-		default:
-			frame.ether_type = htons(ETH_P_IP);
-			break;
-
-	}
+	frame.ether_type = htons(ETH_P_IP);
 
 	struct ifreq if_idx;
 	memset(&if_idx,0,sizeof(struct ifreq));
@@ -116,17 +105,34 @@ void send_message(char if_name[], struct sockaddr_ll sk_addr, char hw_addr[], ch
 
 	// pack frame header
 	unsigned char buff[BUF_SIZ];
-	char *eth_header = (char *)&frame;
-	memcpy(buff,eth_header,ETHHDRSIZ);
-	memcpy(&buff[ETHHDRSIZ],payload,sizePayload);
+	//char *eth_header = (char *)&frame;
+	//memcpy(buff,eth_header,ETHHDRSIZ);
+	//memcpy(&buff[ETHHDRSIZ],payload,sizePayload);
 
 	sk_addr.sll_ifindex = if_idx.ifr_ifindex;
 	sk_addr.sll_halen = ETH_ALEN;
-	printf("size payload: %d\n",sizePayload);
+	/*printf("\n\n0: %d ", sk_addr.sll_family);
+	printf("1: %hhn ", sk_addr.sll_addr);
+	printf("2: %d ", sk_addr.sll_halen);
+	printf("3: %d ", sk_addr.sll_hatype);
+	printf("4: %d ", sk_addr.sll_ifindex);
+	printf("5: %d ", sk_addr.sll_pkttype);
+	printf("6: %d \n", sk_addr.sll_family);
+
+	struct sockaddr addr;
+	memset(&addr, 0,16);
+	char b[14];
+	strcpy(addr.sa_data, "8.8.8.8");
+	//memcpy(,b, sizeof(b));
+	addr.sa_family = 0;*/
+
+	printf("size payload: %ld\n", sizeof(buff));
 	int byteSent = sendto(sockfd, buff, ETHHDRSIZ+sizePayload, 0, (struct sockaddr*)&sk_addr, sizeof(struct sockaddr_ll));
+	//int byteSent = sendto(sockfd, buff, ETHHDRSIZ+sizePayload, 0, &addr, sizeof(struct sockaddr));
+
+	//int byteSent = send(sockfd, buff, BUF_SIZ, MSG_EOR);
 	printf("%d bytes sent!\n", byteSent);
 }
-
 
 // ip_checksum provided by Adam Hahn
 uint16_t ip_checksum(void *vdata, size_t length){
@@ -176,23 +182,8 @@ struct rohc_buf constructIpHeader(struct in_addr dst, char if_name[], int sockfd
             exit(1);
         }
 
-	/*
-	struct iphdr ip_hdr;
-	ip_hdr.ihl = 5;
-	ip_hdr.version = 4;
-	ip_hdr.tos = 0;
-	ip_hdr.tot_len = htons(IPHDRSIZ+sizePayload);
-	ip_hdr.id = 4;
-	ip_hdr.frag_off = 0x0;
-	ip_hdr.ttl = 0x40;
-	ip_hdr.protocol = 6;
-	ip_hdr.check = 0;
-	ip_hdr.saddr = get_ip_saddr(if_name,sockfd);
-	ip_hdr.daddr = dst.s_addr;
-	*/
-
 	ip_header =  (struct iphdr *)rohc_buf_data(ip_packet);
-	ip_header->version = 4;
+	ip_header->version = 0x04;
 	ip_header->ihl = 5;
 	ip_packet.len += ip_header->ihl * 4;
 	ip_header->tos = 0;
@@ -200,12 +191,10 @@ struct rohc_buf constructIpHeader(struct in_addr dst, char if_name[], int sockfd
 	ip_header->id = 4;
 	ip_header->frag_off = 0x0;
 	ip_header->ttl = 0x40;
-	ip_header->protocol = 0x04;
+	ip_header->protocol = 6;
 	ip_header->check = 0;
-	ip_header->saddr = htonl(0x01020304);
-    ip_header->daddr = htonl(0x05060708);
-	/*ip_header->saddr = get_ip_saddr(if_name,sockfd);
-	ip_header->daddr = dst.s_addr;*/
+	ip_header->saddr = get_ip_saddr(if_name,sockfd);
+	ip_header->daddr = dst.s_addr;
 	ip_header->check = ip_checksum(ip_header, IPHDRSIZ);
 
 
@@ -287,62 +276,60 @@ int main(int argc, char *argv[])
 
 	struct sockaddr_ll sk_addr;
 	memset(&sk_addr, 0, sizeof(struct sockaddr_ll));
-
+	
 	if(mode == SEND){
-
-		int sockfd = -1;
-		if((sockfd = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL)))<0){
-			perror("socket() failed!");
-		}
-		// connect to interface name
-		struct ifreq if_hwaddr;
-		memset(&if_hwaddr,0,sizeof(struct ifreq));
-		strncpy(if_hwaddr.ifr_name, interfaceName, IFNAMSIZ-1);
-		int t = ioctl(sockfd, SIOCGIFHWADDR, &if_hwaddr); 
-		if(t < 0){
-			perror("SIOCGIFHWADDR");
-		} else printf("\n\nIOCTL ID%d", t);
-		printf("\n\nDebug: \n");
-		char dst_mac[6];		
-		printf("\n");
-		int sk_addr_size = sizeof(struct sockaddr_ll);
-		//unsigned long netmask = get_netmask(interfaceName,sockfd);
-		//unsigned long my_ip = get_ip_saddr(interfaceName,sockfd);
-		memset(&sk_addr,0,sk_addr_size);
-		struct iphdr *ip_hdr;
-		struct rohc_buf rohc_packet = rohc_buf_init_empty(rohc_buffer, BUFFER_SIZE);
-		
-		rohc_packet = constructIpHeader(dst_ip, interfaceName, sockfd, strlen(buff), rohc_packet);
-		
-		char ip_payload[IPHDRSIZ+strlen(buff)+1];
-		char *ip = (char *)&rohc_packet;
-		memcpy(ip_payload, ip, 8);
-		//memcpy(&ip_payload[IPHDRSIZ], FA, strlen(buff));
-		size_t i;
-		printf("Resulting ROHC packet after compression\n");
-		for(i = 0; i < rohc_packet.len; i++)        {
-			printf("0x%02x ", rohc_buf_byte_at(rohc_packet, i));
-			if(i != 0 && ((i + 1) % 8) == 0)
+		for (int i = 0; i < 10; i++){
+			int sockfd = -1;
+			if((sockfd = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL)))<0){
+				perror("socket() failed!");
+			}
+			// connect to interface name
+			struct ifreq if_hwaddr;
+			memset(&if_hwaddr,0,sizeof(struct ifreq));
+			strncpy(if_hwaddr.ifr_name, interfaceName, IFNAMSIZ-1);
+			int t = ioctl(sockfd, SIOCGIFHWADDR, &if_hwaddr); 
+			if(t < 0){
+				perror("SIOCGIFHWADDR");
+			} else printf("\n\nIOCTL ID%d", t);
+			printf("\n\nDebug: \n");
+			char dst_mac[6];		
+			printf("\n");
+			int sk_addr_size = sizeof(struct sockaddr_ll);
+			//unsigned long netmask = get_netmask(interfaceName,sockfd);
+			//unsigned long my_ip = get_ip_saddr(interfaceName,sockfd);
+			memset(&sk_addr,0,sk_addr_size);
+			struct rohc_buf rohc_packet = rohc_buf_init_empty(rohc_buffer, BUFFER_SIZE);
+			
+			rohc_packet = constructIpHeader(dst_ip, interfaceName, sockfd, strlen(buff), rohc_packet);
+			
+			char ip_payload[IPHDRSIZ+strlen(buff)+1];
+			char *ip = (char *)&rohc_packet;
+			memcpy(ip_payload, ip, 20);
+			//memcpy(&ip_payload[IPHDRSIZ], FA, strlen(buff));
+			size_t i;
+			printf("Resulting ROHC packet after compression\n");
+			for(i = 0; i < rohc_packet.len; i++)        {
+				printf("0x%02x ", rohc_buf_byte_at(rohc_packet, i));
+				if(i != 0 && ((i + 1) % 8) == 0)
+				{
+					printf("\n");
+				}
+			}
+			if(i != 0 && (i % 8) != 0) /* be sure to go to the line */
 			{
 				printf("\n");
 			}
-		}
-		if(i != 0 && (i % 8) != 0) /* be sure to go to the line */
-		{
-			printf("\n");
-		}
-		send_message(interfaceName, sk_addr, dst_mac, ip_payload, sockfd, 1, if_hwaddr, IPHDRSIZ+strlen(buff));
-
-		//send_message2(buff, interfaceName);
-
+			send_message(interfaceName, sk_addr, dst_mac, ip_payload, sockfd, 1, if_hwaddr, IPHDRSIZ+strlen(buff));
+			//send_message2(buff, interfaceName);
 	}
-	else if (mode == RECV){
+	} else if (mode == RECV){
 		int sockfd = -1;
 		if((sockfd = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL)))<0){
 			perror("socket() failed!");
 		}
 		// wait for ARP request
-    	}
+    }
     
 	return 0;
+
 }
